@@ -1,17 +1,16 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request, Form
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 import models
 from database import SessionLocal, engine
-import os
+import crud
 
-# Ensure tables are created
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="FastAPI CRUD App")
+templates = Jinja2Templates(directory="templates")
 
-# ---------------------------
-# Dependency to get DB session
-# ---------------------------
 def get_db():
     db = SessionLocal()
     try:
@@ -19,41 +18,29 @@ def get_db():
     finally:
         db.close()
 
-# ---------------------------
-# Root route
-# ---------------------------
+# Root
 @app.get("/")
-def root():
-    return {"message": "Welcome to FastAPI CRUD App!"}
+def root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-# ---------------------------
-# CRUD Endpoints
-# ---------------------------
+# Teachers
+@app.get("/teachers")
+def read_teachers(request: Request, db: Session = Depends(get_db)):
+    teachers = crud.get_teachers(db)
+    return templates.TemplateResponse("teachers.html", {"request": request, "teachers": teachers})
 
-# Create Teacher
-@app.post("/teachers/")
-def create_teacher(name: str, subject: str, db: Session = Depends(get_db)):
-    teacher = models.Teacher(name=name, subject=subject)
-    db.add(teacher)
-    db.commit()
-    db.refresh(teacher)
-    return teacher
+@app.post("/teachers/create")
+def add_teacher(request: Request, name: str = Form(...), subject: str = Form(...), db: Session = Depends(get_db)):
+    crud.create_teacher(db, name, subject)
+    return RedirectResponse(url="/teachers", status_code=303)
 
-# Get all Teachers
-@app.get("/teachers/")
-def get_teachers(db: Session = Depends(get_db)):
-    return db.query(models.Teacher).all()
+# Students
+@app.get("/students")
+def read_students(request: Request, db: Session = Depends(get_db)):
+    students = crud.get_students(db)
+    return templates.TemplateResponse("students.html", {"request": request, "students": students})
 
-# Create Student
-@app.post("/students/")
-def create_student(name: str, age: int, teacher_id: int, db: Session = Depends(get_db)):
-    student = models.Student(name=name, age=age, teacher_id=teacher_id)
-    db.add(student)
-    db.commit()
-    db.refresh(student)
-    return student
-
-# Get all Students
-@app.get("/students/")
-def get_students(db: Session = Depends(get_db)):
-    return db.query(models.Student).all()
+@app.post("/students/create")
+def add_student(request: Request, name: str = Form(...), age: int = Form(...), teacher_id: int = Form(...), db: Session = Depends(get_db)):
+    crud.create_student(db, name, age, teacher_id)
+    return RedirectResponse(url="/students", status_code=303)

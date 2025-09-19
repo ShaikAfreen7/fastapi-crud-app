@@ -1,13 +1,15 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from dotenv import load_dotenv
 
-# Read the DATABASE_URL from environment variable
+# Load .env file
+load_dotenv()
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Add SSL for Render
-if DATABASE_URL and "sslmode=" not in DATABASE_URL:
-    DATABASE_URL += "?sslmode=require"
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is not set!")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
